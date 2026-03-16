@@ -1,14 +1,11 @@
-
-# ===============================
-# CLIENTE COM INTERFACE GRÁFICA
-# ===============================
-
 import socket
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 
 HOST = "127.0.0.1"
 PORT = 5001
+
+historico = []
 
 def enviar_requisicao():
 
@@ -16,10 +13,13 @@ def enviar_requisicao():
     numero2 = entrada2.get()
     operacao = operacao_var.get()
 
+    if numero1 == "" or numero2 == "":
+        messagebox.showwarning("Aviso", "Preencha os dois números")
+        return
+
     try:
 
         cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
         cliente.connect((HOST, PORT))
 
         mensagem = f"{numero1},{operacao},{numero2}"
@@ -28,7 +28,12 @@ def enviar_requisicao():
 
         resposta = cliente.recv(1024).decode()
 
-        resultado_texto.set("Resultado: " + resposta)
+        resultado_label.config(text=f"Resultado: {resposta}")
+
+        registro = f"{numero1} {operacao} {numero2} = {resposta}"
+        historico.append(registro)
+
+        atualizar_historico()
 
         cliente.close()
 
@@ -44,37 +49,93 @@ def enviar_requisicao():
         messagebox.showerror("Erro", str(erro))
 
 
+def atualizar_historico():
+
+    lista_historico.delete(0, tk.END)
+
+    for item in historico:
+        lista_historico.insert(tk.END, item)
+
+
+def limpar_historico():
+
+    historico.clear()
+    atualizar_historico()
+
+
+# =========================
+# INTERFACE
+# =========================
+
 janela = tk.Tk()
 janela.title("Calculadora Cliente-Servidor")
-janela.geometry("320x260")
+janela.geometry("520x420")
+janela.minsize(450, 380)
 
-tk.Label(janela, text="Número 1").pack()
+style = ttk.Style()
+style.theme_use("clam")
 
-entrada1 = tk.Entry(janela)
-entrada1.pack()
+style.configure("TButton", font=("Arial", 10))
+style.configure("TLabel", font=("Arial", 10))
 
-tk.Label(janela, text="Número 2").pack()
+janela.columnconfigure(0, weight=1)
+janela.rowconfigure(0, weight=1)
 
-entrada2 = tk.Entry(janela)
-entrada2.pack()
+frame = ttk.Frame(janela, padding=20)
+frame.grid(sticky="nsew")
+
+for i in range(2):
+    frame.columnconfigure(i, weight=1)
+
+# Número 1
+ttk.Label(frame, text="Número 1").grid(row=0, column=0, sticky="w")
+entrada1 = ttk.Entry(frame)
+entrada1.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
+# Número 2
+ttk.Label(frame, text="Número 2").grid(row=0, column=1, sticky="w")
+entrada2 = ttk.Entry(frame)
+entrada2.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
+# Operação
+ttk.Label(frame, text="Operação").grid(row=2, column=0, columnspan=2)
 
 operacao_var = tk.StringVar()
-operacao_var.set("+")
 
-tk.Label(janela, text="Operação").pack()
+operacao_menu = ttk.Combobox(
+    frame,
+    textvariable=operacao_var,
+    values=["+", "-", "*", "/"],
+    state="readonly"
+)
 
-menu = tk.OptionMenu(janela, operacao_var, "+", "-", "*", "/")
-menu.pack()
+operacao_menu.current(0)
+operacao_menu.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
 
-tk.Button(
-    janela,
-    text="Calcular",
-    command=enviar_requisicao
-).pack(pady=10)
+# Botão calcular
+botao = ttk.Button(frame, text="Calcular", command=enviar_requisicao)
+botao.grid(row=4, column=0, columnspan=2, pady=10, sticky="ew")
 
-resultado_texto = tk.StringVar()
-resultado_texto.set("Resultado:")
+# Resultado
+resultado_label = ttk.Label(
+    frame,
+    text="Resultado:",
+    font=("Arial", 12, "bold")
+)
+resultado_label.grid(row=5, column=0, columnspan=2, pady=10)
 
-tk.Label(janela, textvariable=resultado_texto).pack()
+# =========================
+# HISTÓRICO
+# =========================
+
+ttk.Label(frame, text="Histórico de Cálculos").grid(row=6, column=0, columnspan=2)
+
+lista_historico = tk.Listbox(frame, height=8)
+lista_historico.grid(row=7, column=0, columnspan=2, sticky="nsew", pady=5)
+
+frame.rowconfigure(7, weight=1)
+
+botao_limpar = ttk.Button(frame, text="Limpar Histórico", command=limpar_historico)
+botao_limpar.grid(row=8, column=0, columnspan=2, pady=5, sticky="ew")
 
 janela.mainloop()
